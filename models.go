@@ -1,13 +1,17 @@
 package main
 
+type geoLocation struct {
+	Lat float64 `json:"lat"`
+	Lon float64 `json:"lon"`
+}
+
 type address struct {
-	Area         string  `json:"area"`
-	Street       string  `json:"street"`
-	StreetNumber string  `json:"streetNumber"`
-	PostalCode   string  `json:"postalCode"`
-	Country      string  `json:"country"`
-	Lat          float64 `json:"lat"`
-	Lon          float64 `json:"lon"`
+	Area         string      `json:"area"`
+	Street       string      `json:"street"`
+	StreetNumber string      `json:"streetNumber"`
+	PostalCode   string      `json:"postalCode"`
+	Country      string      `json:"country"`
+	Location     geoLocation `json:"location"`
 }
 
 type person struct {
