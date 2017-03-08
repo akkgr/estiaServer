@@ -2,7 +2,7 @@ package main
 
 type geoLocation struct {
 	Lat float64 `json:"lat"`
-	Lon float64 `json:"lon"`
+	Lng float64 `json:"lng"`
 }
 
 type address struct {

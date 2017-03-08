@@ -33,12 +33,17 @@ func buildByID(s *mgo.Session) func(w http.ResponseWriter, r *http.Request) {
 		session := s.Copy()
 		defer session.Close()
 
+		var data building
+
 		vars := mux.Vars(r)
 		id := vars["id"]
 
-		c := session.DB("cinnamon").C("buildings")
+		if id == "0" {
+			jsonResponse(data, w)
+			return
+		}
 
-		var data building
+		c := session.DB("cinnamon").C("buildings")
 		err := c.Find(bson.M{"_id": id}).One(&data)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
