@@ -15,7 +15,7 @@ func allBuildings(s *mgo.Session) func(w http.ResponseWriter, r *http.Request) {
 		session := s.Copy()
 		defer session.Close()
 
-		c := session.DB("cinnamon").C("buildings")
+		c := session.DB(db).C("buildings")
 
 		var data []building
 		err := c.Find(bson.M{}).All(&data)
@@ -43,8 +43,8 @@ func buildByID(s *mgo.Session) func(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		c := session.DB("cinnamon").C("buildings")
-		err := c.Find(bson.M{"_id": id}).One(&data)
+		c := session.DB(db).C("buildings")
+		err := c.Find(bson.M{"_id": bson.ObjectIdHex(id)}).One(&data)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -64,7 +64,7 @@ func addBuild(s *mgo.Session) func(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		c := session.DB("cinnamon").C("buildings")
+		c := session.DB(db).C("buildings")
 
 		err := c.Insert(data)
 		if err != nil {
@@ -89,9 +89,9 @@ func updateBuild(s *mgo.Session) func(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		c := session.DB("cinnamon").C("buildings")
+		c := session.DB(db).C("buildings")
 
-		err := c.Update(bson.M{"_id": id}, &data)
+		err := c.Update(bson.M{"_id": bson.ObjectIdHex(id)}, &data)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -108,9 +108,9 @@ func deleteBuild(s *mgo.Session) func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		id := vars["id"]
 
-		c := session.DB("cinnamon").C("buildings")
+		c := session.DB(db).C("buildings")
 
-		err := c.Remove(bson.M{"_id": id})
+		err := c.Remove(bson.M{"_id": bson.ObjectIdHex(id)})
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

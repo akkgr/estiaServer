@@ -1,2 +1,4 @@
 .vscode
-debug
+wwwroot
+debug*
+*.exe

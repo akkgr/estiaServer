@@ -1,5 +1,9 @@
 package main
 
+import (
+	"gopkg.in/mgo.v2/bson"
+)
+
 type geoLocation struct {
 	Lat float64 `json:"lat"`
 	Lng float64 `json:"lng"`
@@ -43,11 +47,12 @@ type appartment struct {
 }
 
 type building struct {
-	Address     address      `json:"address"`
-	Oil         int64        `json:"oil"`
-	Fund        int64        `json:"fund"`
-	Closed      int64        `json:"closed"`
-	Active      bool         `json:"active"`
-	Managment   bool         `json:"managment"`
-	Appartments []appartment `json:"appartments"`
+	ID          bson.ObjectId `json:"id" bson:"_id,omitempty"`
+	Address     address       `json:"address"`
+	Oil         int64         `json:"oil"`
+	Fund        int64         `json:"fund"`
+	Closed      int64         `json:"closed"`
+	Active      bool          `json:"active"`
+	Managment   bool          `json:"managment"`
+	Appartments []appartment  `json:"appartments"`
 }

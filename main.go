@@ -10,6 +10,8 @@ import (
 	mgo "gopkg.in/mgo.v2"
 )
 
+var db = "estia"
+
 func jsonResponse(response interface{}, w http.ResponseWriter) {
 	json, err := json.Marshal(response)
 	if err != nil {
@@ -41,7 +43,7 @@ func main() {
 	defer session.Close()
 
 	session.SetMode(mgo.Monotonic, true)
-	ensureIndex(session)
+	// ensureIndex(session)
 
 	router := mux.NewRouter()
 
@@ -65,6 +67,11 @@ func main() {
 	apiRouter.Path("/buildings").Methods("POST").HandlerFunc(addBuild(session))
 	apiRouter.Path("/buildings/{id}").Methods("PUT").HandlerFunc(updateBuild(session))
 	apiRouter.Path("/buildings/{id}").Methods("DELETE").HandlerFunc(deleteBuild(session))
+	
+	router.PathPrefix("/").Handler(http.FileServer(http.Dir("./wwwroot/")))
+	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "./wwwroot/index.html")
+	})
 
 	http.ListenAndServe("localhost:8080", router)
 }

@@ -44,7 +44,7 @@ func login(s *mgo.Session) func(w http.ResponseWriter, r *http.Request) {
 		}
 
 		var user user
-		c := session.DB("cinnamon").C("users")
+		c := session.DB(db).C("users")
 		err = c.Find(bson.M{"username": strings.ToLower(credentials.Username)}).One(&user)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -64,8 +64,8 @@ func login(s *mgo.Session) func(w http.ResponseWriter, r *http.Request) {
 		exp := time.Now().Add(time.Minute * 20).Unix()
 		claims := &jwt.StandardClaims{
 			ExpiresAt: exp,
-			Issuer:    "test",
-			Subject:   "admin",
+			Issuer:    "estia",
+			Subject:   user.Username,
 		}
 
 		token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
