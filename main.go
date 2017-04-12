@@ -3,6 +3,8 @@ package main
 import (
 	"encoding/json"
 	"net/http"
+	"os"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/urfave/negroni"
@@ -32,6 +34,22 @@ func corsMiddleware(w http.ResponseWriter, r *http.Request, next http.HandlerFun
 	} else {
 		next(w, r)
 	}
+}
+
+func staticHandler(w http.ResponseWriter, r *http.Request) {
+	requestPath := r.URL.Path
+	fileSystemPath := "wwwroot" + r.URL.Path
+	endURIPath := strings.Split(requestPath, "/")[len(strings.Split(requestPath, "/"))-1]
+	splitPath := strings.Split(endURIPath, ".")
+	if len(splitPath) > 1 {
+		if f, err := os.Stat(fileSystemPath); err == nil && !f.IsDir() {
+			http.ServeFile(w, r, fileSystemPath)
+			return
+		}
+		http.NotFound(w, r)
+		return
+	}
+	http.ServeFile(w, r, "wwwroot/index.html")
 }
 
 func main() {
@@ -69,10 +87,7 @@ func main() {
 	apiRouter.Path("/buildings/{id}").Methods("PUT").HandlerFunc(updateBuild(session))
 	apiRouter.Path("/buildings/{id}").Methods("DELETE").HandlerFunc(deleteBuild(session))
 
-	router.PathPrefix("/").Handler(http.FileServer(http.Dir("./wwwroot/")))
-	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "./wwwroot/index.html")
-	})
+	router.HandleFunc("/", staticHandler)
 
 	http.ListenAndServe("localhost:8080", router)
 }
