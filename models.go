@@ -4,18 +4,14 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
-type geoLocation struct {
-	Lat float64 `json:"lat"`
-	Lng float64 `json:"lng"`
-}
-
 type address struct {
-	Area         string      `json:"area"`
-	Street       string      `json:"street"`
-	StreetNumber string      `json:"streetNumber"`
-	PostalCode   string      `json:"postalCode"`
-	Country      string      `json:"country"`
-	Location     geoLocation `json:"location"`
+	Area         string  `json:"area"`
+	Street       string  `json:"street"`
+	StreetNumber string  `json:"streetNumber"`
+	PostalCode   string  `json:"postalCode"`
+	Country      string  `json:"country"`
+	Lat          float64 `json:"lat"`
+	Lng          float64 `json:"lng"`
 }
 
 type person struct {

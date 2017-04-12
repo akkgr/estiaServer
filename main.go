@@ -36,14 +36,15 @@ func corsMiddleware(w http.ResponseWriter, r *http.Request, next http.HandlerFun
 
 func main() {
 
-	session, err := mgo.Dial("localhost")
+	session, err := mgo.Dial("mongodb://localhost:27017")
 	if err != nil {
 		panic(err)
 	}
 	defer session.Close()
 
 	session.SetMode(mgo.Monotonic, true)
-	// ensureIndex(session)
+	ensureIndex(session)
+	ensureAdminUser(session)
 
 	router := mux.NewRouter()
 
@@ -67,7 +68,7 @@ func main() {
 	apiRouter.Path("/buildings").Methods("POST").HandlerFunc(addBuild(session))
 	apiRouter.Path("/buildings/{id}").Methods("PUT").HandlerFunc(updateBuild(session))
 	apiRouter.Path("/buildings/{id}").Methods("DELETE").HandlerFunc(deleteBuild(session))
-	
+
 	router.PathPrefix("/").Handler(http.FileServer(http.Dir("./wwwroot/")))
 	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "./wwwroot/index.html")

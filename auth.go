@@ -13,6 +13,8 @@ import (
 
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/dgrijalva/jwt-go/request"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 var mySigningKey = []byte("TooSlowTooLate4u.")
@@ -29,6 +31,16 @@ type userCredentials struct {
 type user struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
+}
+
+func hashPassword(password string) (string, error) {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
+	return string(bytes), err
+}
+
+func checkPasswordHash(password, hash string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+	return err == nil
 }
 
 func login(s *mgo.Session) func(w http.ResponseWriter, r *http.Request) {
@@ -56,7 +68,8 @@ func login(s *mgo.Session) func(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if user.Password != credentials.Password {
+		match := checkPasswordHash(credentials.Password, user.Password)
+		if match == false {
 			http.Error(w, "Invalid credentials", http.StatusInternalServerError)
 			return
 		}
