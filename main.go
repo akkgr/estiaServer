@@ -87,7 +87,7 @@ func main() {
 	apiRouter.Path("/buildings/{id}").Methods("PUT").HandlerFunc(updateBuild(session))
 	apiRouter.Path("/buildings/{id}").Methods("DELETE").HandlerFunc(deleteBuild(session))
 
-	router.HandleFunc("/", staticHandler)
+	router.PathPrefix("/{_:.*}").HandlerFunc(staticHandler)
 
 	http.ListenAndServe("localhost:8080", router)
 }
