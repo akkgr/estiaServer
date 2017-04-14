@@ -59,12 +59,12 @@ func login(s *mgo.Session) func(w http.ResponseWriter, r *http.Request) {
 		c := session.DB(db).C("users")
 		err = c.Find(bson.M{"username": strings.ToLower(credentials.Username)}).One(&user)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, "Username not found", http.StatusInternalServerError)
 			return
 		}
 
 		if user.Username == "" {
-			http.Error(w, "User not found", http.StatusInternalServerError)
+			http.Error(w, "Username not found", http.StatusInternalServerError)
 			return
 		}
 
