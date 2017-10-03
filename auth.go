@@ -23,11 +23,6 @@ type jwtToken struct {
 	Token string `json:"token"`
 }
 
-type userCredentials struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-}
-
 type user struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
@@ -48,7 +43,7 @@ func login(s *mgo.Session) func(w http.ResponseWriter, r *http.Request) {
 		session := s.Copy()
 		defer session.Close()
 
-		var credentials userCredentials
+		var credentials user
 		err := json.NewDecoder(r.Body).Decode(&credentials)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
