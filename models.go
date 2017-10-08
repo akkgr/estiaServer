@@ -4,6 +4,11 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
+type dataResponse struct {
+	Count int         `json:"count"`
+	Data  interface{} `json:"data"`
+}
+
 type address struct {
 	Area         string  `json:"area"`
 	Street       string  `json:"street"`

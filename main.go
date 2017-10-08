@@ -20,8 +20,9 @@ func jsonResponse(response interface{}, w http.ResponseWriter) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	w.WriteHeader(http.StatusOK)
+
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 	w.Write(json)
 }
 
@@ -54,7 +55,7 @@ func staticHandler(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 
-	session, err := mgo.Dial("mongodb://localhost:27017")
+	session, err := mgo.Dial("mongodb://admin:Adm.123@ds113935.mlab.com:13935/estia")
 	if err != nil {
 		panic(err)
 	}
@@ -81,7 +82,7 @@ func main() {
 		negroni.Wrap(apiBase),
 	))
 	apiRouter := apiBase.PathPrefix("/api").Subrouter()
-	apiRouter.Path("/buildings").Methods("GET").HandlerFunc(allBuildings(session))
+	apiRouter.Path("/buildings/{offset}/{limit}").Methods("GET").HandlerFunc(allBuildings(session))
 	apiRouter.Path("/buildings/{id}").Methods("GET").HandlerFunc(buildByID(session))
 	apiRouter.Path("/buildings").Methods("POST").HandlerFunc(addBuild(session))
 	apiRouter.Path("/buildings/{id}").Methods("PUT").HandlerFunc(updateBuild(session))

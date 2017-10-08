@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 
 	"github.com/gorilla/mux"
 
@@ -15,16 +16,28 @@ func allBuildings(s *mgo.Session) func(w http.ResponseWriter, r *http.Request) {
 		session := s.Copy()
 		defer session.Close()
 
+		vars := mux.Vars(r)
+		offset, _ := strconv.Atoi(vars["offset"])
+		limit, _ := strconv.Atoi(vars["limit"])
+
 		c := session.DB(db).C("buildings")
 
 		var data []building
-		err := c.Find(bson.M{}).All(&data)
+		count, err := c.Find(bson.M{}).Count()
+		err = c.Find(bson.M{}).Sort(
+			"address.street",
+			"address.streetNumber",
+			"address.area",
+			"address.country").Skip(offset).Limit(limit).All(&data)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		jsonResponse(data, w)
+		var resp dataResponse
+		resp.Data = data
+		resp.Count = count
+		jsonResponse(resp, w)
 	}
 }
 
