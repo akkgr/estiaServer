@@ -1,0 +1,1 @@
+go run main.go auth.go buildingHandlers.go db.go models.go

@@ -69,7 +69,7 @@ func login(s *mgo.Session) func(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		exp := time.Now().Add(time.Minute * 20).Unix()
+		exp := time.Now().Add(time.Hour * 8).Unix()
 		claims := &jwt.StandardClaims{
 			ExpiresAt: exp,
 			Issuer:    "estia",
