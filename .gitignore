@@ -1,4 +1,4 @@
 .vscode
-wwwroot
+*.bat
 debug*
 *.exe
