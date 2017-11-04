@@ -57,7 +57,7 @@ func staticHandler(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 
-	session, err := mgo.Dial("mongodb://admin:Adm.123@ds113935.mlab.com:13935/estia")
+	session, err := mgo.Dial("mongodb://admin:Adm.123@ds243085.mlab.com:43085/estiag")
 	if err != nil {
 		panic(err)
 	}
