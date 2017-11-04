@@ -14,7 +14,7 @@ import (
 	mgo "gopkg.in/mgo.v2"
 )
 
-var db = "estia"
+var db = "estiag"
 
 func jsonResponse(response interface{}, w http.ResponseWriter) {
 	json, err := json.Marshal(response)
