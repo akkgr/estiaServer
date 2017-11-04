@@ -59,7 +59,7 @@ func main() {
 
 	session, err := mgo.Dial("mongodb://admin:Adm.123@ds243085.mlab.com:43085/estiag")
 	if err != nil {
-		log.Print(err)
+		panic(err)
 	}
 	defer session.Close()
 
