@@ -2,9 +2,11 @@ package main
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/urfave/negroni"
@@ -90,5 +92,11 @@ func main() {
 
 	router.PathPrefix("/{_:.*}").HandlerFunc(staticHandler)
 
-	http.ListenAndServe("localhost:8080", router)
+	srv := &http.Server{
+		Addr:         ":8080",
+		Handler:      router,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
+	}
+	log.Fatal(srv.ListenAndServe())
 }
