@@ -1,45 +1,20 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/akkgr/estiaServer/adapters"
 	"github.com/akkgr/estiaServer/controllers"
 	"github.com/akkgr/estiaServer/repositories"
-	jwt "github.com/dgrijalva/jwt-go"
-	"github.com/dgrijalva/jwt-go/request"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 
 	mgo "gopkg.in/mgo.v2"
 )
-
-func auth(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		token, err := request.ParseFromRequest(r, request.AuthorizationHeaderExtractor, func(token *jwt.Token) (interface{}, error) {
-			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
-			}
-			return repositories.MySigningKey, nil
-		})
-
-		if err == nil {
-			if token.Valid {
-				next.ServeHTTP(w, r)
-			} else {
-				w.WriteHeader(http.StatusUnauthorized)
-				fmt.Fprint(w, "Token is not valid")
-			}
-		} else {
-			w.WriteHeader(http.StatusUnauthorized)
-			fmt.Fprint(w, "Unauthorised access to this resource")
-		}
-	})
-}
 
 func staticHandler(w http.ResponseWriter, r *http.Request) {
 	requestPath := r.URL.Path
@@ -72,17 +47,18 @@ func main() {
 	router := mux.NewRouter()
 
 	authRouter := router.PathPrefix("/auth").Subrouter()
-	authRouter.Path("/login").Methods("POST").HandlerFunc(controllers.Login(session))
+	authRouter.Path("/login").Methods("POST").HandlerFunc(controllers.Login)
 
 	apiRouter := mux.NewRouter()
 	apiSub := apiRouter.PathPrefix("/api").Subrouter()
 	buildRouter := apiSub.PathPrefix("/buildings").Subrouter()
-	buildRouter.Path("/{offset}/{limit}").Methods("GET").HandlerFunc(controllers.AllBuildings(session))
-	buildRouter.Path("/{id}").Methods("GET").HandlerFunc(controllers.BuildByID(session))
-	buildRouter.Path("/").Methods("POST").HandlerFunc(controllers.AddBuild(session))
-	buildRouter.Path("/{id}").Methods("PUT").HandlerFunc(controllers.UpdateBuild(session))
-	buildRouter.Path("/{id}").Methods("DELETE").HandlerFunc(controllers.DeleteBuild(session))
-	router.Handle("/api/{_:.*}", auth(apiRouter))
+	buildRouter.Path("/{offset}/{limit}").Methods("GET").HandlerFunc(controllers.AllBuildings)
+	buildRouter.Path("/{id}").Methods("GET").HandlerFunc(controllers.BuildByID)
+	buildRouter.Path("/").Methods("POST").HandlerFunc(controllers.AddBuild)
+	buildRouter.Path("/{id}").Methods("PUT").HandlerFunc(controllers.UpdateBuild)
+	buildRouter.Path("/{id}").Methods("DELETE").HandlerFunc(controllers.DeleteBuild)
+	h := adapters.Adapt(apiRouter, adapters.WithDB(session), adapters.WithAuth())
+	router.Handle("/api/{_:.*}", h)
 
 	router.PathPrefix("/{_:.*}").HandlerFunc(staticHandler)
 
