@@ -1,15 +1,28 @@
-package main
+package models
 
 import (
 	"gopkg.in/mgo.v2/bson"
 )
 
-type dataResponse struct {
+// JwtToken helper type
+type JwtToken struct {
+	Token string `json:"token"`
+}
+
+// DataResponse helper type
+type DataResponse struct {
 	Count int         `json:"count"`
 	Data  interface{} `json:"data"`
 }
 
-type address struct {
+// User Model
+type User struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+// Address Model
+type Address struct {
 	Area         string  `json:"area"`
 	Street       string  `json:"street"`
 	StreetNumber string  `json:"streetNumber"`
@@ -19,10 +32,11 @@ type address struct {
 	Lng          float64 `json:"lng"`
 }
 
-type person struct {
+// Person Model
+type Person struct {
 	Lastname  string  `json:"lastname"`
 	Firstname string  `json:"firstname"`
-	Address   address `json:"address"`
+	Address   Address `json:"address"`
 	Home      string  `json:"home"`
 	Work      string  `json:"work"`
 	Mobile    string  `json:"mobile"`
@@ -32,11 +46,12 @@ type person struct {
 	Ibank     string  `json:"ibank"`
 }
 
-type appartment struct {
+// Appartment Model
+type Appartment struct {
 	Title    string   `json:"title"`
 	Position int32    `json:"position"`
-	Resident person   `json:"resident"`
-	Owner    person   `json:"owner"`
+	Resident Person   `json:"resident"`
+	Owner    Person   `json:"owner"`
 	Common   int64    `json:"common"`
 	Elevetor int64    `json:"elevetor"`
 	Heat     int64    `json:"heat"`
@@ -47,13 +62,14 @@ type appartment struct {
 	Counters []string `json:"counters"`
 }
 
-type building struct {
+// Building Model
+type Building struct {
 	ID          bson.ObjectId `json:"id" bson:"_id,omitempty"`
-	Address     address       `json:"address"`
+	Address     Address       `json:"address"`
 	Oil         int64         `json:"oil"`
 	Fund        int64         `json:"fund"`
 	Closed      int64         `json:"closed"`
 	Active      bool          `json:"active"`
 	Managment   bool          `json:"managment"`
-	Appartments []appartment  `json:"appartments"`
+	Appartments []Appartment  `json:"appartments"`
 }

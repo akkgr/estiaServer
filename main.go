@@ -1,42 +1,44 @@
 package main
 
 import (
-	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/akkgr/estiaServer/controllers"
+	"github.com/akkgr/estiaServer/repositories"
+	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/dgrijalva/jwt-go/request"
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	"github.com/urfave/negroni"
 
 	mgo "gopkg.in/mgo.v2"
 )
 
-var db = "estiag"
+func auth(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		token, err := request.ParseFromRequest(r, request.AuthorizationHeaderExtractor, func(token *jwt.Token) (interface{}, error) {
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+			}
+			return repositories.MySigningKey, nil
+		})
 
-func jsonResponse(response interface{}, w http.ResponseWriter) {
-	json, err := json.Marshal(response)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	w.Write(json)
-}
-
-func corsMiddleware(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	if r.Method == "OPTIONS" {
-		w.Header().Set("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type,Authorization")
-		w.WriteHeader(http.StatusOK)
-	} else {
-		next(w, r)
-	}
+		if err == nil {
+			if token.Valid {
+				next.ServeHTTP(w, r)
+			} else {
+				w.WriteHeader(http.StatusUnauthorized)
+				fmt.Fprint(w, "Token is not valid")
+			}
+		} else {
+			w.WriteHeader(http.StatusUnauthorized)
+			fmt.Fprint(w, "Unauthorised access to this resource")
+		}
+	})
 }
 
 func staticHandler(w http.ResponseWriter, r *http.Request) {
@@ -64,37 +66,35 @@ func main() {
 	defer session.Close()
 
 	session.SetMode(mgo.Monotonic, true)
-	ensureIndex(session)
-	ensureAdminUser(session)
+	repositories.EnsureIndex(session)
+	repositories.EnsureAdminUser(session)
 
 	router := mux.NewRouter()
 
-	authBase := mux.NewRouter()
-	router.PathPrefix("/auth").Handler(negroni.New(
-		negroni.HandlerFunc(corsMiddleware),
-		negroni.Wrap(authBase),
-	))
-	authRouter := authBase.PathPrefix("/auth").Subrouter()
-	authRouter.Path("/login").Methods("POST").HandlerFunc(login(session))
+	authRouter := router.PathPrefix("/auth").Subrouter()
+	authRouter.Path("/login").Methods("POST").HandlerFunc(controllers.Login(session))
 
-	apiBase := mux.NewRouter()
-	router.PathPrefix("/api").Handler(negroni.New(
-		negroni.HandlerFunc(corsMiddleware),
-		negroni.HandlerFunc(authMiddleware),
-		negroni.Wrap(apiBase),
-	))
-	apiRouter := apiBase.PathPrefix("/api").Subrouter()
-	apiRouter.Path("/buildings/{offset}/{limit}").Methods("GET").HandlerFunc(allBuildings(session))
-	apiRouter.Path("/buildings/{id}").Methods("GET").HandlerFunc(buildByID(session))
-	apiRouter.Path("/buildings").Methods("POST").HandlerFunc(addBuild(session))
-	apiRouter.Path("/buildings/{id}").Methods("PUT").HandlerFunc(updateBuild(session))
-	apiRouter.Path("/buildings/{id}").Methods("DELETE").HandlerFunc(deleteBuild(session))
+	apiRouter := mux.NewRouter()
+	apiSub := apiRouter.PathPrefix("/api").Subrouter()
+	buildRouter := apiSub.PathPrefix("/buildings").Subrouter()
+	buildRouter.Path("/{offset}/{limit}").Methods("GET").HandlerFunc(controllers.AllBuildings(session))
+	buildRouter.Path("/{id}").Methods("GET").HandlerFunc(controllers.BuildByID(session))
+	buildRouter.Path("/").Methods("POST").HandlerFunc(controllers.AddBuild(session))
+	buildRouter.Path("/{id}").Methods("PUT").HandlerFunc(controllers.UpdateBuild(session))
+	buildRouter.Path("/{id}").Methods("DELETE").HandlerFunc(controllers.DeleteBuild(session))
+	router.Handle("/api/{_:.*}", auth(apiRouter))
 
 	router.PathPrefix("/{_:.*}").HandlerFunc(staticHandler)
 
+	headersOk := handlers.AllowedHeaders([]string{"Content-Type", "Authorization"})
+	originsOk := handlers.AllowedOrigins([]string{"*"})
+	methodsOk := handlers.AllowedMethods([]string{"GET", "HEAD", "POST", "PUT", "DELETE", "OPTIONS"})
+	corsRouter := handlers.CORS(originsOk, headersOk, methodsOk)(router)
+	logRouter := handlers.LoggingHandler(os.Stdout, corsRouter)
+
 	srv := &http.Server{
 		Addr:         ":8080",
-		Handler:      router,
+		Handler:      logRouter,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 	}
