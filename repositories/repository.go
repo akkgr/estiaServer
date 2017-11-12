@@ -12,15 +12,15 @@ import (
 // MySigningKey ...
 var MySigningKey = []byte("TooSlowTooLate4u.")
 
-// Db ...
-var Db = "estiag"
+// DbName ...
+var DbName = "estiag"
 
 // EnsureIndex ...
 func EnsureIndex(s *mgo.Session) {
 	session := s.Copy()
 	defer session.Close()
 
-	c := session.DB(Db).C("users")
+	c := session.DB(DbName).C("users")
 
 	index := mgo.Index{
 		Key:        []string{"username"},
@@ -40,7 +40,7 @@ func EnsureAdminUser(s *mgo.Session) {
 	session := s.Copy()
 	defer session.Close()
 
-	c := session.DB(Db).C("users")
+	c := session.DB(DbName).C("users")
 	var user models.User
 	err := c.Find(bson.M{"username": "admin"}).One(&user)
 	if err == nil {

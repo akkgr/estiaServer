@@ -3,6 +3,7 @@ package adapters
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/akkgr/estiaServer/repositories"
@@ -14,11 +15,16 @@ import (
 // Adapter ...
 type Adapter func(http.Handler) http.Handler
 
-// DbContextKey ...
-type DbContextKey string
+// ContextKey ...
+type ContextKey string
 
 // DbKey ...
-var DbKey = DbContextKey("dbsession")
+var (
+	DbContextKey     = ContextKey("dbsession")
+	IDContextKey     = ContextKey("id")
+	OffsetContextKey = ContextKey("offset")
+	LimitContextKey  = ContextKey("limit")
+)
 
 // Adapt ...
 func Adapt(h http.Handler, adapters ...Adapter) http.Handler {
@@ -26,6 +32,16 @@ func Adapt(h http.Handler, adapters ...Adapter) http.Handler {
 		h = adapter(h)
 	}
 	return h
+}
+
+// WithLog ...
+func WithLog() Adapter {
+	return func(h http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			log.Printf("%s %s %s\n", r.RemoteAddr, r.Method, r.URL)
+			h.ServeHTTP(w, r)
+		})
+	}
 }
 
 // WithCors ...
@@ -50,7 +66,7 @@ func WithDB(db *mgo.Session) Adapter {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			dbsession := db.Copy()
 			defer dbsession.Close()
-			ctx := context.WithValue(r.Context(), DbKey, dbsession)
+			ctx := context.WithValue(r.Context(), DbContextKey, dbsession)
 			h.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}

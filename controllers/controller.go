@@ -13,12 +13,12 @@ import (
 	"github.com/akkgr/estiaServer/models"
 	"github.com/akkgr/estiaServer/repositories"
 	jwt "github.com/dgrijalva/jwt-go"
-	"github.com/gorilla/mux"
 	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )
 
-var db = repositories.Db
+var dbName = repositories.DbName
+var dbContextKey = adapters.DbContextKey
 
 func jsonResponse(response interface{}, w http.ResponseWriter) {
 	json, err := json.Marshal(response)
@@ -34,7 +34,7 @@ func jsonResponse(response interface{}, w http.ResponseWriter) {
 
 // Login ...
 func Login(w http.ResponseWriter, r *http.Request) {
-	session := r.Context().Value(adapters.DbKey).(*mgo.Session)
+	session := r.Context().Value(dbContextKey).(*mgo.Session)
 
 	var credentials models.User
 	err := json.NewDecoder(r.Body).Decode(&credentials)
@@ -44,7 +44,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var user models.User
-	c := session.DB(db).C("users")
+	c := session.DB(dbName).C("users")
 	err = c.Find(bson.M{"username": strings.ToLower(credentials.Username)}).One(&user)
 	if err != nil {
 		http.Error(w, "Username not found", http.StatusInternalServerError)
@@ -84,13 +84,13 @@ func Login(w http.ResponseWriter, r *http.Request) {
 
 // AllBuildings ...
 func AllBuildings(w http.ResponseWriter, r *http.Request) {
-	session := r.Context().Value(adapters.DbKey).(*mgo.Session)
+	session := r.Context().Value(dbContextKey).(*mgo.Session)
+	offset := r.Context().Value(adapters.OffsetContextKey).(string)
+	limit := r.Context().Value(adapters.OffsetContextKey).(string)
 
-	vars := mux.Vars(r)
-	offset, _ := strconv.Atoi(vars["offset"])
-	limit, _ := strconv.Atoi(vars["limit"])
-
-	c := session.DB(db).C("buildings")
+	o, _ := strconv.Atoi(offset)
+	l, _ := strconv.Atoi(limit)
+	c := session.DB(dbName).C("buildings")
 
 	var data []models.Building
 	count, err := c.Find(bson.M{}).Count()
@@ -98,7 +98,7 @@ func AllBuildings(w http.ResponseWriter, r *http.Request) {
 		"address.street",
 		"address.streetNumber",
 		"address.area",
-		"address.country").Skip(offset).Limit(limit).All(&data)
+		"address.country").Skip(o).Limit(l).All(&data)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -112,19 +112,16 @@ func AllBuildings(w http.ResponseWriter, r *http.Request) {
 
 // BuildByID ...
 func BuildByID(w http.ResponseWriter, r *http.Request) {
-	session := r.Context().Value(adapters.DbKey).(*mgo.Session)
-
+	session := r.Context().Value(dbContextKey).(*mgo.Session)
+	id := r.Context().Value(adapters.IDContextKey).(string)
 	var data models.Building
-
-	vars := mux.Vars(r)
-	id := vars["id"]
 
 	if id == "0" {
 		jsonResponse(data, w)
 		return
 	}
 
-	c := session.DB(db).C("buildings")
+	c := session.DB(dbName).C("buildings")
 	err := c.Find(bson.M{"_id": bson.ObjectIdHex(id)}).One(&data)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -135,7 +132,7 @@ func BuildByID(w http.ResponseWriter, r *http.Request) {
 
 // AddBuild ...
 func AddBuild(w http.ResponseWriter, r *http.Request) {
-	session := r.Context().Value(adapters.DbKey).(*mgo.Session)
+	session := r.Context().Value(dbContextKey).(*mgo.Session)
 
 	data := models.Building{}
 	if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
@@ -143,7 +140,7 @@ func AddBuild(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	c := session.DB(db).C("buildings")
+	c := session.DB(dbName).C("buildings")
 
 	err := c.Insert(data)
 	if err != nil {
@@ -155,10 +152,8 @@ func AddBuild(w http.ResponseWriter, r *http.Request) {
 
 // UpdateBuild ...
 func UpdateBuild(w http.ResponseWriter, r *http.Request) {
-	session := r.Context().Value(adapters.DbKey).(*mgo.Session)
-
-	vars := mux.Vars(r)
-	id := vars["id"]
+	session := r.Context().Value(dbContextKey).(*mgo.Session)
+	id := r.Context().Value(adapters.IDContextKey).(string)
 
 	data := models.Building{}
 	if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
@@ -166,7 +161,7 @@ func UpdateBuild(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	c := session.DB(db).C("buildings")
+	c := session.DB(dbName).C("buildings")
 
 	err := c.Update(bson.M{"_id": bson.ObjectIdHex(id)}, &data)
 	if err != nil {
@@ -178,12 +173,10 @@ func UpdateBuild(w http.ResponseWriter, r *http.Request) {
 
 // DeleteBuild ...
 func DeleteBuild(w http.ResponseWriter, r *http.Request) {
-	session := r.Context().Value(adapters.DbKey).(*mgo.Session)
+	session := r.Context().Value(dbContextKey).(*mgo.Session)
+	id := r.Context().Value(adapters.IDContextKey).(string)
 
-	vars := mux.Vars(r)
-	id := vars["id"]
-
-	c := session.DB(db).C("buildings")
+	c := session.DB(dbName).C("buildings")
 
 	err := c.Remove(bson.M{"_id": bson.ObjectIdHex(id)})
 	if err != nil {

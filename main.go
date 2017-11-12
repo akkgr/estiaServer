@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"os"
@@ -35,10 +36,10 @@ func (h *app) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	head, r.URL.Path = shiftPath(r.URL.Path)
 	switch head {
 	case "auth":
-		s := adapters.Adapt(h.auth, adapters.WithCors(), adapters.WithDB(h.session))
+		s := adapters.Adapt(h.auth, adapters.WithCors(), adapters.WithLog(), adapters.WithDB(h.session))
 		s.ServeHTTP(w, r)
 	case "api":
-		s := adapters.Adapt(h.api, adapters.WithCors(), adapters.WithDB(h.session), adapters.WithAuth())
+		s := adapters.Adapt(h.api, adapters.WithCors(), adapters.WithLog(), adapters.WithDB(h.session), adapters.WithAuth())
 		s.ServeHTTP(w, r)
 	default:
 		staticHandler(w, r)
@@ -88,15 +89,25 @@ func staticHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func buildingsHandler(w http.ResponseWriter, r *http.Request) {
+	head, tail := shiftPath(r.URL.Path)
 	switch r.Method {
 	case "GET":
-		controllers.AllBuildings(w, r)
+		if tail == "/" {
+			ctx := context.WithValue(r.Context(), adapters.IDContextKey, head)
+			controllers.BuildByID(w, r.WithContext(ctx))
+		} else {
+			ctx := context.WithValue(r.Context(), adapters.OffsetContextKey, head)
+			ctx = context.WithValue(ctx, adapters.LimitContextKey, tail)
+			controllers.AllBuildings(w, r.WithContext(ctx))
+		}
 	case "POST":
 		controllers.AddBuild(w, r)
 	case "PUT":
-		controllers.UpdateBuild(w, r)
+		ctx := context.WithValue(r.Context(), adapters.IDContextKey, head)
+		controllers.UpdateBuild(w, r.WithContext(ctx))
 	case "DELETE":
-		controllers.DeleteBuild(w, r)
+		ctx := context.WithValue(r.Context(), adapters.IDContextKey, head)
+		controllers.DeleteBuild(w, r.WithContext(ctx))
 	default:
 		http.Error(w, "Only GET, POST, PUT and DELETE are allowed", http.StatusMethodNotAllowed)
 	}
@@ -113,30 +124,6 @@ func main() {
 	session.SetMode(mgo.Monotonic, true)
 	repositories.EnsureIndex(session)
 	repositories.EnsureAdminUser(session)
-
-	// router := mux.NewRouter()
-
-	// authRouter := router.PathPrefix("/auth").Subrouter()
-	// authRouter.Path("/login").Methods("POST").HandlerFunc(controllers.Login)
-
-	// apiRouter := mux.NewRouter()
-	// apiSub := apiRouter.PathPrefix("/api").Subrouter()
-	// buildRouter := apiSub.PathPrefix("/buildings").Subrouter()
-	// buildRouter.Path("/{offset}/{limit}").Methods("GET").HandlerFunc(controllers.AllBuildings)
-	// buildRouter.Path("/{id}").Methods("GET").HandlerFunc(controllers.BuildByID)
-	// buildRouter.Path("/").Methods("POST").HandlerFunc(controllers.AddBuild)
-	// buildRouter.Path("/{id}").Methods("PUT").HandlerFunc(controllers.UpdateBuild)
-	// buildRouter.Path("/{id}").Methods("DELETE").HandlerFunc(controllers.DeleteBuild)
-	// h := adapters.Adapt(apiRouter, adapters.WithDB(session), adapters.WithAuth())
-	// router.Handle("/api/{_:.*}", h)
-
-	// router.PathPrefix("/{_:.*}").HandlerFunc(staticHandler)
-
-	// headersOk := handlers.AllowedHeaders([]string{"Content-Type", "Authorization"})
-	// originsOk := handlers.AllowedOrigins([]string{"*"})
-	// methodsOk := handlers.AllowedMethods([]string{"GET", "HEAD", "POST", "PUT", "DELETE", "OPTIONS"})
-	// corsRouter := handlers.CORS(originsOk, headersOk, methodsOk)(router)
-	// logRouter := handlers.LoggingHandler(os.Stdout, corsRouter)
 
 	app := &app{
 		session: session,
