@@ -36,10 +36,10 @@ func (h *app) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	head, r.URL.Path = shiftPath(r.URL.Path)
 	switch head {
 	case "auth":
-		s := adapters.Adapt(h.auth, adapters.WithCors(), adapters.WithLog(), adapters.WithDB(h.session))
+		s := adapters.Adapt(h.auth, adapters.WithDB(h.session), adapters.WithLog(), adapters.WithCors())
 		s.ServeHTTP(w, r)
 	case "api":
-		s := adapters.Adapt(h.api, adapters.WithCors(), adapters.WithLog(), adapters.WithDB(h.session), adapters.WithAuth())
+		s := adapters.Adapt(h.api, adapters.WithAuth(), adapters.WithDB(h.session), adapters.WithLog(), adapters.WithCors())
 		s.ServeHTTP(w, r)
 	default:
 		staticHandler(w, r)
