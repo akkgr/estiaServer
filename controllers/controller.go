@@ -154,12 +154,14 @@ func AddBuild(w http.ResponseWriter, r *http.Request) {
 func UpdateBuild(w http.ResponseWriter, r *http.Request) {
 	session := r.Context().Value(dbContextKey).(*mgo.Session)
 	id := r.Context().Value(adapters.IDContextKey).(string)
+	username := r.Context().Value(adapters.UserContextKey).(string)
 
 	data := models.Building{}
 	if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	data.Username = username
 
 	c := session.DB(dbName).C("buildings")
 

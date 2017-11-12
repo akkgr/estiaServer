@@ -72,4 +72,5 @@ type Building struct {
 	Active      bool          `json:"active"`
 	Managment   bool          `json:"managment"`
 	Appartments []Appartment  `json:"appartments"`
+	Username    string        `json:"username"`
 }

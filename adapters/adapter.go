@@ -20,6 +20,7 @@ type ContextKey string
 
 // DbKey ...
 var (
+	UserContextKey   = ContextKey("sub")
 	DbContextKey     = ContextKey("dbsession")
 	IDContextKey     = ContextKey("id")
 	OffsetContextKey = ContextKey("offset")
@@ -84,8 +85,9 @@ func WithAuth() Adapter {
 			})
 
 			if err == nil {
-				if token.Valid {
-					next.ServeHTTP(w, r)
+				if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+					ctx := context.WithValue(r.Context(), UserContextKey, claims["sub"])
+					next.ServeHTTP(w, r.WithContext(ctx))
 				} else {
 					w.WriteHeader(http.StatusUnauthorized)
 					fmt.Fprint(w, "Token is not valid")
