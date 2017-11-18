@@ -193,6 +193,7 @@ func DeleteBuild(w http.ResponseWriter, r *http.Request) {
 // UploadFile ...
 func UploadFile(w http.ResponseWriter, r *http.Request) {
 	session := r.Context().Value(dbContextKey).(*mgo.Session)
+	gfs := session.DB(dbName).GridFS("fs")
 
 	file, handler, err := r.FormFile("file")
 	if err != nil {
@@ -207,7 +208,7 @@ func UploadFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	dbfile, err := session.DB(dbName).GridFS("fs").Create(handler.Filename)
+	dbfile, err := gfs.Create(handler.Filename)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -219,8 +220,17 @@ func UploadFile(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	// md5hash := h.Sum(nil)
-	// session.DB(dbName).GridFS("fs").Find({"":""})
+	md5hash := fmt.Sprintf("%x", h.Sum(nil))
+	old := gfs.Find(bson.M{"md5": md5hash}).Iter()
+	var f *mgo.GridFile
+	for gfs.OpenNext(old, &f) {
+		jsonResponse(f.Id(), w)
+		return
+	}
+	if old.Close() != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	_, err = io.Copy(dbfile, file)
 	if err != nil {
