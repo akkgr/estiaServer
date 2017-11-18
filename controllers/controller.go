@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"crypto/md5"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -211,6 +212,15 @@ func UploadFile(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	h := md5.New()
+	_, err = io.Copy(h, file)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	// md5hash := h.Sum(nil)
+	// session.DB(dbName).GridFS("fs").Find({"":""})
 
 	_, err = io.Copy(dbfile, file)
 	if err != nil {
