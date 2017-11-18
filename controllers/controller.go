@@ -221,14 +221,14 @@ func UploadFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	md5hash := fmt.Sprintf("%x", h.Sum(nil))
-	old := gfs.Find(bson.M{"md5": md5hash}).Iter()
-	var f *mgo.GridFile
-	for gfs.OpenNext(old, &f) {
-		jsonResponse(f.Id(), w)
+	var old []*mgo.GridFile
+	err = gfs.Find(bson.M{"md5": md5hash}).All(&old)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	if old.Close() != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	if len(old) > 0 {
+		jsonResponse(old[0].Id(), w)
 		return
 	}
 
