@@ -3,6 +3,7 @@ package controllers
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"strconv"
@@ -186,4 +187,61 @@ func DeleteBuild(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// UploadFile ...
+func UploadFile(w http.ResponseWriter, r *http.Request) {
+	session := r.Context().Value(dbContextKey).(*mgo.Session)
+
+	file, handler, err := r.FormFile("file")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer file.Close()
+
+	limit := int64(30 * 1024 * 1024)
+	if handler.Size > limit {
+		http.Error(w, "Maximum File size is 30Mb", http.StatusInternalServerError)
+		return
+	}
+
+	dbfile, err := session.DB(dbName).GridFS("fs").Create(handler.Filename)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	_, err = io.Copy(dbfile, file)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	err = dbfile.Close()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	jsonResponse(dbfile.Id(), w)
+}
+
+// DownloadFile ...
+func DownloadFile(w http.ResponseWriter, r *http.Request) {
+	session := r.Context().Value(dbContextKey).(*mgo.Session)
+	id := r.Context().Value(adapters.IDContextKey).(string)
+
+	dbfile, err := session.DB(dbName).GridFS("fs").OpenId(bson.ObjectIdHex(id))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	_, err = io.Copy(w, dbfile)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	dbfile.Close()
+	w.Header().Set("Content-Disposition", "attachment; filename="+dbfile.Name())
+	w.Header().Set("Content-Type", "application/x-download")
 }

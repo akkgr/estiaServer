@@ -66,6 +66,8 @@ func (h *api) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var head string
 	head, r.URL.Path = shiftPath(r.URL.Path)
 	switch head {
+	case "files":
+		fileHandler(w, r)
 	case "buildings":
 		buildingsHandler(w, r)
 	default:
@@ -87,6 +89,25 @@ func staticHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.ServeFile(w, r, "wwwroot/index.html")
+}
+
+func fileHandler(w http.ResponseWriter, r *http.Request) {
+	head, tail := shiftPath(r.URL.Path)
+	switch r.Method {
+	case "GET":
+		if tail == "/" {
+			ctx := context.WithValue(r.Context(), adapters.IDContextKey, head)
+			controllers.DownloadFile(w, r.WithContext(ctx))
+		} else {
+			http.Error(w, "Only GET, POST and DELETE are allowed", http.StatusMethodNotAllowed)
+		}
+	case "POST":
+		controllers.UploadFile(w, r)
+	case "DELETE":
+		http.Error(w, "Only GET, POST and DELETE are allowed", http.StatusMethodNotAllowed)
+	default:
+		http.Error(w, "Only GET, POST and DELETE are allowed", http.StatusMethodNotAllowed)
+	}
 }
 
 func buildingsHandler(w http.ResponseWriter, r *http.Request) {
