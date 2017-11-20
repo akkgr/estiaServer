@@ -1,29 +1,47 @@
 package controllers
 
 import (
-	"crypto/md5"
 	"encoding/json"
-	"fmt"
-	"io"
-	"log"
 	"net/http"
-	"strconv"
-	"strings"
-	"time"
 
 	"github.com/akkgr/estiaServer/adapters"
-	"github.com/akkgr/estiaServer/models"
 	"github.com/akkgr/estiaServer/repositories"
-	jwt "github.com/dgrijalva/jwt-go"
-	mgo "gopkg.in/mgo.v2"
-	"gopkg.in/mgo.v2/bson"
 )
+
+// Route describe a HTTP route
+type Route struct {
+	Method  string
+	Path    string
+	Handler http.HandlerFunc
+}
+
+// Router ...
+type Router interface {
+	GetRoutes() []Route
+}
+
+// Controller struct
+type Controller struct {
+}
 
 var dbName = repositories.DbName
 var dbContextKey = adapters.DbContextKey
+var userContextKey = adapters.UserContextKey
+var signKey = repositories.MySigningKey
+var checkPassword = repositories.CheckPasswordHash
 
-func jsonResponse(response interface{}, w http.ResponseWriter) {
-	json, err := json.Marshal(response)
+type jwtToken struct {
+	Token string `json:"token"`
+}
+
+type dataResponse struct {
+	Count int         `json:"count"`
+	Data  interface{} `json:"data"`
+}
+
+// SendJSON marshals v to a json struct and sends appropriate headers to w
+func (c *Controller) SendJSON(v interface{}, w http.ResponseWriter) {
+	json, err := json.Marshal(v)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -34,234 +52,23 @@ func jsonResponse(response interface{}, w http.ResponseWriter) {
 	w.Write(json)
 }
 
-// Login ...
-func Login(w http.ResponseWriter, r *http.Request) {
-	session := r.Context().Value(dbContextKey).(*mgo.Session)
-
-	var credentials models.User
-	err := json.NewDecoder(r.Body).Decode(&credentials)
+// GetContent of the request inside given struct
+func (c *Controller) GetContent(v interface{}, r *http.Request) error {
+	decoder := json.NewDecoder(r.Body)
+	err := decoder.Decode(v)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return err
 	}
 
-	var user models.User
-	c := session.DB(dbName).C("users")
-	err = c.Find(bson.M{"username": strings.ToLower(credentials.Username)}).One(&user)
-	if err != nil {
-		http.Error(w, "Username not found", http.StatusInternalServerError)
-		return
-	}
-
-	if user.Username == "" {
-		http.Error(w, "Username not found", http.StatusInternalServerError)
-		return
-	}
-
-	match := repositories.CheckPasswordHash(credentials.Password, user.Password)
-	if match == false {
-		http.Error(w, "Invalid credentials", http.StatusInternalServerError)
-		return
-	}
-
-	exp := time.Now().Add(time.Hour * 8).Unix()
-	claims := &jwt.StandardClaims{
-		ExpiresAt: exp,
-		Issuer:    "estia",
-		Subject:   user.Username,
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString(repositories.MySigningKey)
-
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintln(w, "Error while signing the token")
-		log.Printf("Error signing token: %v\n", err)
-	}
-
-	response := models.JwtToken{Token: tokenString}
-	jsonResponse(response, w)
+	return nil
 }
 
-// AllBuildings ...
-func AllBuildings(w http.ResponseWriter, r *http.Request) {
-	session := r.Context().Value(dbContextKey).(*mgo.Session)
-	offset := r.Context().Value(adapters.OffsetContextKey).(string)
-	limit := r.Context().Value(adapters.OffsetContextKey).(string)
-
-	o, _ := strconv.Atoi(offset)
-	l, _ := strconv.Atoi(limit)
-	c := session.DB(dbName).C("buildings")
-
-	var data []models.Building
-	count, err := c.Find(bson.M{}).Count()
-	err = c.Find(bson.M{}).Sort(
-		"address.street",
-		"address.streetNumber",
-		"address.area",
-		"address.country").Skip(o).Limit(l).All(&data)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+// HandleError write error on response and return false if there is no error
+func (c *Controller) HandleError(err error, w http.ResponseWriter) bool {
+	if err == nil {
+		return false
 	}
 
-	var resp models.DataResponse
-	resp.Data = data
-	resp.Count = count
-	jsonResponse(resp, w)
-}
-
-// BuildByID ...
-func BuildByID(w http.ResponseWriter, r *http.Request) {
-	session := r.Context().Value(dbContextKey).(*mgo.Session)
-	id := r.Context().Value(adapters.IDContextKey).(string)
-	var data models.Building
-
-	if id == "0" {
-		jsonResponse(data, w)
-		return
-	}
-
-	c := session.DB(dbName).C("buildings")
-	err := c.Find(bson.M{"_id": bson.ObjectIdHex(id)}).One(&data)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	jsonResponse(data, w)
-}
-
-// AddBuild ...
-func AddBuild(w http.ResponseWriter, r *http.Request) {
-	session := r.Context().Value(dbContextKey).(*mgo.Session)
-
-	data := models.Building{}
-	if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	c := session.DB(dbName).C("buildings")
-
-	err := c.Insert(data)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	jsonResponse(data, w)
-}
-
-// UpdateBuild ...
-func UpdateBuild(w http.ResponseWriter, r *http.Request) {
-	session := r.Context().Value(dbContextKey).(*mgo.Session)
-	id := r.Context().Value(adapters.IDContextKey).(string)
-	username := r.Context().Value(adapters.UserContextKey).(string)
-
-	data := models.Building{}
-	if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	data.Username = username
-
-	c := session.DB(dbName).C("buildings")
-
-	err := c.Update(bson.M{"_id": bson.ObjectIdHex(id)}, &data)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	jsonResponse(data, w)
-}
-
-// DeleteBuild ...
-func DeleteBuild(w http.ResponseWriter, r *http.Request) {
-	session := r.Context().Value(dbContextKey).(*mgo.Session)
-	id := r.Context().Value(adapters.IDContextKey).(string)
-
-	c := session.DB(dbName).C("buildings")
-
-	err := c.Remove(bson.M{"_id": bson.ObjectIdHex(id)})
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
-}
-
-// UploadFile ...
-func UploadFile(w http.ResponseWriter, r *http.Request) {
-	session := r.Context().Value(dbContextKey).(*mgo.Session)
-	gfs := session.DB(dbName).GridFS("fs")
-
-	file, handler, err := r.FormFile("file")
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	defer file.Close()
-
-	limit := int64(30 * 1024 * 1024)
-	if handler.Size > limit {
-		http.Error(w, "Maximum File size is 30Mb", http.StatusInternalServerError)
-		return
-	}
-
-	dbfile, err := gfs.Create(handler.Filename)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	h := md5.New()
-	_, err = io.Copy(h, file)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	md5hash := fmt.Sprintf("%x", h.Sum(nil))
-	var old []*mgo.GridFile
-	err = gfs.Find(bson.M{"md5": md5hash}).All(&old)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	if len(old) > 0 {
-		jsonResponse(old[0].Id(), w)
-		return
-	}
-
-	_, err = io.Copy(dbfile, file)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	err = dbfile.Close()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	jsonResponse(dbfile.Id(), w)
-}
-
-// DownloadFile ...
-func DownloadFile(w http.ResponseWriter, r *http.Request) {
-	session := r.Context().Value(dbContextKey).(*mgo.Session)
-	id := r.Context().Value(adapters.IDContextKey).(string)
-
-	dbfile, err := session.DB(dbName).GridFS("fs").OpenId(bson.ObjectIdHex(id))
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	_, err = io.Copy(w, dbfile)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	dbfile.Close()
-	w.Header().Set("Content-Disposition", "attachment; filename="+dbfile.Name())
-	w.Header().Set("Content-Type", "application/x-download")
+	http.Error(w, err.Error(), http.StatusInternalServerError)
+	return true
 }

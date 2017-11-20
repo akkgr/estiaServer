@@ -5,28 +5,20 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"path"
 	"strings"
 	"time"
 
 	"github.com/akkgr/estiaServer/adapters"
 	"github.com/akkgr/estiaServer/controllers"
 	"github.com/akkgr/estiaServer/repositories"
+	"github.com/gorilla/mux"
 
 	mgo "gopkg.in/mgo.v2"
 )
 
-func shiftPath(p string) (head, tail string) {
-	p = path.Clean("/" + p)
-	i := strings.Index(p[1:], "/") + 1
-	if i <= 0 {
-		return p[1:], "/"
-	}
-	return p[1:i], p[i:]
-}
-
 type app struct {
 	session *mgo.Session
+	router  *mux.Router
 	auth    *auth
 	api     *api
 }
@@ -45,6 +37,22 @@ func (h *app) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	default:
 		staticHandler(w, r)
 	}
+
+	router := mux.NewRouter()
+
+	authRouter := router.PathPrefix("/auth").Subrouter()
+	authRouter.Path("/login").Methods("POST").HandlerFunc(controllers.Login)
+
+	apiRouter := mux.NewRouter()
+	apiSub := apiRouter.PathPrefix("/api").Subrouter()
+	buildRouter := apiSub.PathPrefix("/buildings").Subrouter()
+	for _, route := range b.GetRoutes() {
+		s.HandleFunc(route.Path, route.Handler).Methods(route.Method)
+	}
+	h := adapters.Adapt(apiRouter, adapters.WithDB(session), adapters.WithAuth())
+	router.Handle("/api/{_:.*}", h)
+
+	router.PathPrefix("/{_:.*}").HandlerFunc(staticHandler)
 }
 
 type auth struct{}
@@ -149,6 +157,7 @@ func main() {
 
 	app := &app{
 		session: session,
+		router:  mux.NewRouter().StrictSlash(true),
 		auth:    new(auth),
 		api:     new(api),
 	}
