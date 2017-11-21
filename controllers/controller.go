@@ -24,9 +24,9 @@ type Router interface {
 type Controller struct {
 }
 
-var dbName = repositories.DbName
 var dbContextKey = adapters.DbContextKey
 var userContextKey = adapters.UserContextKey
+var dbName = repositories.DbName
 var signKey = repositories.MySigningKey
 var checkPassword = repositories.CheckPasswordHash
 

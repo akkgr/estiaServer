@@ -12,11 +12,8 @@ type ContextKey string
 
 // DbKey ...
 var (
-	UserContextKey   = ContextKey("sub")
-	DbContextKey     = ContextKey("dbsession")
-	IDContextKey     = ContextKey("id")
-	OffsetContextKey = ContextKey("offset")
-	LimitContextKey  = ContextKey("limit")
+	UserContextKey = ContextKey("sub")
+	DbContextKey   = ContextKey("dbsession")
 )
 
 // Adapt ...

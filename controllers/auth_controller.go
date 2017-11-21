@@ -12,12 +12,12 @@ import (
 )
 
 // UsersController struct
-type UsersController struct {
+type AuthController struct {
 	Controller
 }
 
 // GetRoutes ...
-func (u UsersController) GetRoutes() []Route {
+func (u AuthController) GetRoutes() []Route {
 	return []Route{
 		Route{
 			Method:  http.MethodPost,
@@ -27,7 +27,7 @@ func (u UsersController) GetRoutes() []Route {
 	}
 }
 
-func (u UsersController) login(w http.ResponseWriter, r *http.Request) {
+func (u AuthController) login(w http.ResponseWriter, r *http.Request) {
 	session := r.Context().Value(dbContextKey).(*mgo.Session)
 
 	var credentials models.User
