@@ -48,11 +48,6 @@ func (c FilesController) upload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	dbfile, err := gfs.Create(handler.Filename)
-	if c.HandleError(err, w) {
-		return
-	}
-
 	h := md5.New()
 	_, err = io.Copy(h, file)
 	if c.HandleError(err, w) {
@@ -71,6 +66,10 @@ func (c FilesController) upload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	dbfile, err := gfs.Create(handler.Filename)
+	if c.HandleError(err, w) {
+		return
+	}
 	_, err = io.Copy(dbfile, file)
 	if c.HandleError(err, w) {
 		return
