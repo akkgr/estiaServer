@@ -11,7 +11,7 @@ type Adapter func(http.Handler) http.Handler
 type ContextKey string
 
 // DbKey ...
-var (
+const (
 	UserContextKey = ContextKey("sub")
 	DbContextKey   = ContextKey("dbsession")
 )

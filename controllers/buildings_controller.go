@@ -10,6 +10,11 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
+const (
+	tableName   = "buildings"
+	routePrefix = "buildings"
+)
+
 // BuildingsController struct
 type BuildingsController struct {
 	Controller
@@ -20,27 +25,27 @@ func (b BuildingsController) GetRoutes() []Route {
 	return []Route{
 		Route{
 			Method:  http.MethodGet,
-			Path:    "/buildings/{offset}/{limit}",
+			Path:    "/" + routePrefix + "/{offset}/{limit}",
 			Handler: b.list,
 		},
 		Route{
 			Method:  http.MethodGet,
-			Path:    "/buildings/{id}",
+			Path:    "/" + routePrefix + "/{id}",
 			Handler: b.get,
 		},
 		Route{
 			Method:  http.MethodPost,
-			Path:    "/buildings",
+			Path:    "/" + routePrefix,
 			Handler: b.create,
 		},
 		Route{
 			Method:  http.MethodPut,
-			Path:    "/buildings/{id}",
+			Path:    "/" + routePrefix + "{id}",
 			Handler: b.update,
 		},
 		Route{
 			Method:  http.MethodDelete,
-			Path:    "/buildings/{id}",
+			Path:    "/" + routePrefix + "{id}",
 			Handler: b.delete,
 		},
 	}
@@ -53,7 +58,7 @@ func (b BuildingsController) list(w http.ResponseWriter, r *http.Request) {
 	offset, _ := strconv.Atoi(vars["offset"])
 	limit, _ := strconv.Atoi(vars["limit"])
 
-	c := session.DB(dbName).C("buildings")
+	c := session.DB(b.dbName).C(tableName)
 
 	var data []models.Building
 	count, err := c.Find(bson.M{}).Count()
@@ -89,7 +94,7 @@ func (b BuildingsController) get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	c := session.DB(dbName).C("buildings")
+	c := session.DB(b.dbName).C(tableName)
 	err := c.Find(bson.M{"_id": bson.ObjectIdHex(id)}).One(&data)
 	if b.HandleError(err, w) {
 		return
@@ -107,7 +112,7 @@ func (b BuildingsController) create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	c := session.DB(dbName).C("buildings")
+	c := session.DB(b.dbName).C(tableName)
 
 	err = c.Insert(data)
 	if b.HandleError(err, w) {
@@ -131,7 +136,7 @@ func (b BuildingsController) update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data.Username = username
-	c := session.DB(dbName).C("buildings")
+	c := session.DB(b.dbName).C(tableName)
 	err = c.Update(bson.M{"_id": bson.ObjectIdHex(id)}, &data)
 	if b.HandleError(err, w) {
 		return
@@ -146,7 +151,7 @@ func (b BuildingsController) delete(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
-	c := session.DB(dbName).C("buildings")
+	c := session.DB(b.dbName).C(tableName)
 	err := c.Remove(bson.M{"_id": bson.ObjectIdHex(id)})
 	if b.HandleError(err, w) {
 		return

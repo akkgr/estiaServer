@@ -5,8 +5,10 @@ import (
 	"net/http"
 
 	"github.com/akkgr/estiaServer/adapters"
-	"github.com/akkgr/estiaServer/repositories"
 )
+
+const dbContextKey = adapters.DbContextKey
+const userContextKey = adapters.UserContextKey
 
 // Route describe a HTTP route
 type Route struct {
@@ -22,16 +24,14 @@ type Router interface {
 
 // Controller struct
 type Controller struct {
+	dbName string
 }
 
-var dbContextKey = adapters.DbContextKey
-var userContextKey = adapters.UserContextKey
-var dbName = repositories.DbName
-var signKey = repositories.MySigningKey
-var checkPassword = repositories.CheckPasswordHash
-
-type jwtToken struct {
-	Token string `json:"token"`
+// NewController ...
+func NewController(db string) *Controller {
+	c := new(Controller)
+	c.dbName = db
+	return c
 }
 
 type dataResponse struct {

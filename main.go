@@ -8,11 +8,19 @@ import (
 	"time"
 
 	"github.com/akkgr/estiaServer/adapters"
+	"github.com/akkgr/estiaServer/auth"
 	"github.com/akkgr/estiaServer/controllers"
 	"github.com/akkgr/estiaServer/repositories"
 	"github.com/gorilla/mux"
 
 	mgo "gopkg.in/mgo.v2"
+)
+
+var (
+	dbServer   = "mongodb://admin:Adm.123@ds243085.mlab.com:43085/estiag"
+	dbName     = "estiag"
+	signingKey = []byte("TooSlowTooLate4u.")
+	issuer     = "estia"
 )
 
 func staticHandler(w http.ResponseWriter, r *http.Request) {
@@ -33,31 +41,40 @@ func staticHandler(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 
-	session, err := mgo.Dial("mongodb://admin:Adm.123@ds243085.mlab.com:43085/estiag")
+	session, err := mgo.Dial(dbServer)
 	if err != nil {
 		panic(err)
 	}
 	defer session.Close()
 
 	session.SetMode(mgo.Monotonic, true)
-	repositories.EnsureIndex(session)
-	repositories.EnsureAdminUser(session)
+	db := repositories.NewContext(dbName)
+	db.EnsureIndex(session)
+	auth.EnsureAdminUser(session, dbName)
 
 	router := mux.NewRouter()
 
 	authRouter := router.PathPrefix("/auth").Subrouter()
-	auth := controllers.AuthController{}
-	for _, route := range auth.GetRoutes() {
-		h := adapters.Adapt(route.Handler, adapters.WithDB(session), adapters.WithLog(), adapters.WithCors())
-		authRouter.Handle(route.Path, h).Methods(route.Method)
-	}
+	h := adapters.Adapt(auth.Login(dbName,
+		issuer,
+		signingKey,
+		adapters.DbContextKey),
+		adapters.WithDB(session),
+		adapters.WithLog(),
+		adapters.WithCors())
+	authRouter.Handle("/login", h).Methods("POST")
 
 	apiRouter := router.PathPrefix("/api").Subrouter()
-	f := controllers.FilesController{}
-	b := controllers.BuildingsController{}
+	f := new(controllers.FilesController)
+	b := new(controllers.BuildingsController)
 	routes := append(b.GetRoutes(), f.GetRoutes()...)
 	for _, route := range routes {
-		h := adapters.Adapt(route.Handler, adapters.WithAuth(), adapters.WithDB(session), adapters.WithLog(), adapters.WithCors())
+		h := adapters.Adapt(auth.WithAuth(signingKey,
+			adapters.UserContextKey,
+			route.Handler),
+			adapters.WithDB(session),
+			adapters.WithLog(),
+			adapters.WithCors())
 		apiRouter.Handle(route.Path, h).Methods(route.Method)
 	}
 

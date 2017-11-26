@@ -34,7 +34,7 @@ func (c FilesController) GetRoutes() []Route {
 
 func (c FilesController) upload(w http.ResponseWriter, r *http.Request) {
 	session := r.Context().Value(dbContextKey).(*mgo.Session)
-	gfs := session.DB(dbName).GridFS("fs")
+	gfs := session.DB(c.dbName).GridFS("fs")
 
 	file, handler, err := r.FormFile("file")
 	if c.HandleError(err, w) {
@@ -89,7 +89,7 @@ func (c FilesController) download(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
-	dbfile, err := session.DB(dbName).GridFS("fs").OpenId(bson.ObjectIdHex(id))
+	dbfile, err := session.DB(c.dbName).GridFS("fs").OpenId(bson.ObjectIdHex(id))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
