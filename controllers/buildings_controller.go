@@ -40,12 +40,12 @@ func (b BuildingsController) GetRoutes() []Route {
 		},
 		Route{
 			Method:  http.MethodPut,
-			Path:    "/" + routePrefix + "{id}",
+			Path:    "/" + routePrefix + "/{id}",
 			Handler: b.update,
 		},
 		Route{
 			Method:  http.MethodDelete,
-			Path:    "/" + routePrefix + "{id}",
+			Path:    "/" + routePrefix + "/{id}",
 			Handler: b.delete,
 		},
 	}

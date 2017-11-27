@@ -57,15 +57,16 @@ func main() {
 				adapters.UserContextKey,
 				route.Handler),
 			adapters.WithDB(session),
-			adapters.WithLog(),
-			adapters.WithCors())
+			adapters.WithCors(),
+			adapters.WithLog())
 		apiRouter.Handle(route.Path, h).Methods(route.Method)
 	}
 
-	router.PathPrefix("/{_:.*}").Handler(adapters.Adapt(
+	staticRouter := router.PathPrefix("/").Subrouter()
+	staticRouter.Handle("/{_:.*}", adapters.Adapt(
 		adapters.Static("wwwroot", "index.html"),
-		adapters.WithLog(),
-		adapters.WithCors()))
+		adapters.WithCors(),
+		adapters.WithLog()))
 
 	srv := &http.Server{
 		Addr:         ":8080",
