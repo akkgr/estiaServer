@@ -3,8 +3,6 @@ package main
 import (
 	"log"
 	"net/http"
-	"os"
-	"strings"
 	"time"
 
 	"github.com/akkgr/estiaServer/adapters"
@@ -23,22 +21,6 @@ var (
 	issuer     = "estia"
 )
 
-func staticHandler(w http.ResponseWriter, r *http.Request) {
-	requestPath := r.URL.Path
-	fileSystemPath := "wwwroot" + r.URL.Path
-	endURIPath := strings.Split(requestPath, "/")[len(strings.Split(requestPath, "/"))-1]
-	splitPath := strings.Split(endURIPath, ".")
-	if len(splitPath) > 1 {
-		if f, err := os.Stat(fileSystemPath); err == nil && !f.IsDir() {
-			http.ServeFile(w, r, fileSystemPath)
-			return
-		}
-		http.NotFound(w, r)
-		return
-	}
-	http.ServeFile(w, r, "wwwroot/index.html")
-}
-
 func main() {
 
 	session, err := mgo.Dial(dbServer)
@@ -55,10 +37,11 @@ func main() {
 	router := mux.NewRouter()
 
 	authRouter := router.PathPrefix("/auth").Subrouter()
-	h := adapters.Adapt(auth.Login(dbName,
-		issuer,
-		signingKey,
-		adapters.DbContextKey),
+	h := adapters.Adapt(
+		auth.Login(dbName,
+			issuer,
+			signingKey,
+			adapters.DbContextKey),
 		adapters.WithDB(session),
 		adapters.WithLog(),
 		adapters.WithCors())
@@ -69,16 +52,20 @@ func main() {
 	b := new(controllers.BuildingsController)
 	routes := append(b.GetRoutes(), f.GetRoutes()...)
 	for _, route := range routes {
-		h := adapters.Adapt(auth.WithAuth(signingKey,
-			adapters.UserContextKey,
-			route.Handler),
+		h := adapters.Adapt(
+			auth.WithAuth(signingKey,
+				adapters.UserContextKey,
+				route.Handler),
 			adapters.WithDB(session),
 			adapters.WithLog(),
 			adapters.WithCors())
 		apiRouter.Handle(route.Path, h).Methods(route.Method)
 	}
 
-	router.PathPrefix("/{_:.*}").HandlerFunc(staticHandler)
+	router.PathPrefix("/{_:.*}").Handler(adapters.Adapt(
+		adapters.Static("wwwroot", "index.html"),
+		adapters.WithLog(),
+		adapters.WithCors()))
 
 	srv := &http.Server{
 		Addr:         ":8080",
